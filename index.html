@@ -76,6 +76,16 @@
   .pill.off{opacity:.4;filter:grayscale(.3)}
   .pill.active{box-shadow:0 0 0 2px var(--ink) inset}
 
+  /* áreas */
+  .area-bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:16px 0 0}
+  .area-cap{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold,#B59154)}
+  .area-seg{display:inline-flex;background:var(--surface);border:1px solid var(--gold,#B59154);border-radius:999px;padding:4px}
+  .area-seg button{font-size:13px;font-weight:700;color:var(--ink2);background:transparent;border:none;border-radius:999px;
+    padding:8px 16px;cursor:pointer;transition:.15s}
+  .area-seg button:focus-visible{outline:2px solid var(--gold,#B59154);outline-offset:2px}
+  .area-seg button.on{background:var(--gold,#B59154);color:#fff}
+  .area-note{font-size:12px;color:var(--ink3)}
+
   /* visão dupla */
   .visao-bar{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:14px 0 4px}
   .visao-seg{display:inline-flex;background:var(--bg2);border-radius:999px;padding:4px;box-shadow:var(--sh)}
@@ -302,6 +312,17 @@ https://docs.google.com/spreadsheets/d/ID_DO_CONSULTOR_2/edit"></textarea>
 
   <div class="attention" id="attention"></div>
 
+  <div class="area-bar">
+    <span class="area-cap">Área</span>
+    <div class="area-seg" role="tablist" aria-label="Área">
+      <button data-area="consultores">Consultores</button>
+      <button data-area="layana">Layana</button>
+      <button data-area="alexandre">Alexandre</button>
+      <button data-area="gregori">Grégori</button>
+    </div>
+    <span class="area-note" id="areaNote"></span>
+  </div>
+
   <div class="visao-bar">
     <div class="visao-seg" role="tablist" aria-label="Visão">
       <button id="vRMR" role="tab">RMR · Executiva</button>
@@ -367,6 +388,12 @@ const SHEETS_HARDCODED = [
   "https://docs.google.com/spreadsheets/d/1mNrdu0ccgPyltfGFL_LbnB21ImL-TISRypKbF4jtRVs/edit",
   "https://docs.google.com/spreadsheets/d/1fl18AViZaDQSNrqkDUwOeJCY0D87Q1OOEe2bb3T5ClA/edit"
 ];               // ex.: ["https://docs.google.com/.../edit","OUTRO_ID"]
+const AREAS={
+  consultores:{label:"Consultores", sheets:SHEETS_HARDCODED},
+  layana:    {label:"Layana",     sheets:["https://docs.google.com/spreadsheets/d/1kD4cCaMWHXLPU1G4XWtFL4P-KT0CZSrFPcNNIhn5thM/edit"]},
+  alexandre: {label:"Alexandre",  sheets:["https://docs.google.com/spreadsheets/d/1wO2bmxG0GLml60S-Fgy5pPNdQee6fNfOUwPVBb9bNaw/edit"]},
+  gregori:   {label:"Grégori",    sheets:["https://docs.google.com/spreadsheets/d/1I4N1KrAexVt7Peaj4903QjfGWoQJvVg41Tz2fJJj16c/edit"]}
+};
 const TAB_PLANOS = "Planos de Ação";
 const TAB_IND    = "Indicadores Mensais";
 const TAB_UPD    = "Atualizações";
@@ -377,36 +404,31 @@ const DEMO_PLANOS=[
  {praca:"Três Lagoas",consultor:"Marcelo",mes:"Mar/2026",indicador:"Repetição Acrílica",valor:"13%",meta:"< 5%",acima:"Acima",
   motivo:"Barra desadaptada / sem passividade (Ficha 2504 — protocolo superior, Out/2025). Peça fora da especificação.",
   setor:"Laboratório",respOrigem:"Protético Hugo (lab interno)",
-  corretiva:"Substituição do protético já realizada; Jeferson fez avaliação técnica in loco (15/05).",
-  preventiva:"Monitoramento mensal do índice; validar tecnicamente todo novo protético antes de assumir casos.",
+  corretiva:"Substituição do protético já realizada; Jeferson fez avaliação técnica in loco (15/05). Preventiva: Monitoramento mensal do índice; validar tecnicamente todo novo protético antes de assumir casos.",
   respAcao:"Jeferson (téc.) / Marcelo (ops.)",prazo:"15/05/2026",status:"Em andamento",proxRev:"Jun/2026",
   devolutiva:"15/05/2026 — Visita do Dr. Jeferson: protético Hugo NÃO possui o domínio técnico necessário. Encaminhamento: nova substituição + busca de profissional qualificado. Índice deve seguir alto até acertar o laboratório."},
  {praca:"Três Lagoas",consultor:"Marcelo",mes:"Mar/2026",indicador:"Refação",valor:"—",meta:"Meta interna",acima:"Acima",
   motivo:"Função, fala e mastigação comprometidas (Ficha 3452, Set/2025). Na acrilização os dentes ficaram tortos e a barra ficou curta.",
   setor:"Laboratório",respOrigem:"Protético (execução técnica)",
-  corretiva:"Substituição do protético realizada; reavaliação técnica dos casos abertos.",
-  preventiva:"Revisar protocolo de acrilização e conferência de barra antes da entrega; acompanhar próximos casos do profissional.",
+  corretiva:"Substituição do protético realizada; reavaliação técnica dos casos abertos. Preventiva: Revisar protocolo de acrilização e conferência de barra antes da entrega; acompanhar próximos casos do profissional.",
   respAcao:"Marcelo (ops.)",prazo:"15/05/2026",status:"Pendente análise",proxRev:"Jun/2026",
   devolutiva:"15/05/2026 — Mesmo encaminhamento da Ficha 2504: protético substituído não atende ao padrão; iniciar nova contratação."},
  {praca:"Três Lagoas",consultor:"Marcelo",mes:"Mar/2026",indicador:"Delay de Agenda",valor:"3h–3h30 / arcada",meta:"≤ 2h30",acima:"Acima",
   motivo:"Implantodontista Dr. Moacir acima do tempo padrão Ageodonto por arcada; resistência inicial à mudança.",
   setor:"Cirurgia / Implantodontia",respOrigem:"Dr. Moacir (implantodontista)",
-  corretiva:"Reunião realizada (15/05) e novos tempos acordados: protocolo c/ moldagem máx. 2h30; unitárias até 4 elementos 1h; exodontia de siso 1h30. Implementação imediata na agenda.",
-  preventiva:"Monitoramento mensal do cumprimento dos tempos acordados; treinar recepção no tempo padrão por especialidade.",
+  corretiva:"Reunião realizada (15/05) e novos tempos acordados: protocolo c/ moldagem máx. 2h30; unitárias até 4 elementos 1h; exodontia de siso 1h30. Implementação imediata na agenda. Preventiva: Monitoramento mensal do cumprimento dos tempos acordados; treinar recepção no tempo padrão por especialidade.",
   respAcao:"Jeferson (téc.) / Marcelo (ops.)",prazo:"15/05/2026",status:"Em andamento",proxRev:"Jun/2026",
   devolutiva:"15/05/2026 — Tempos cirúrgicos acordados com o Dr. Moacir e implantados na agenda. Acompanhar próximo mês."},
  {praca:"Três Lagoas",consultor:"Marcelo",mes:"Mar/2026",indicador:"Delay de Agenda",valor:"70 elem. cerâmica",meta:"Monitorar",acima:" Dentro",
   motivo:"Aumento nas entregas de cerâmica (70 elementos no mês) gerou delay do protesista.",
   setor:"Protesista (clínico)",respOrigem:"Protesista da unidade",
-  corretiva:"Nenhuma ação corretiva necessária — delay justificado pelo volume, sem impacto no momento da venda.",
-  preventiva:"Manter monitoramento mensal do volume x capacidade para antecipar necessidade de reforço.",
+  corretiva:"Nenhuma ação corretiva necessária — delay justificado pelo volume, sem impacto no momento da venda. Preventiva: Manter monitoramento mensal do volume x capacidade para antecipar necessidade de reforço.",
   respAcao:"Marcelo (ops.)",prazo:"Monitorar",status:" Justificado (sem impacto)",proxRev:"Jun/2026",
   devolutiva:"Delay de agenda justificado pelo aumento de demanda de cerâmica. Não houve impacto na venda."},
  {praca:"Três Lagoas",consultor:"Marcelo",mes:"Jul/2026",indicador:"Recepção — Dress code",valor:"Não conforme",meta:"Conforme",acima:"Acima",
   motivo:"(EXEMPLO checklist Sults) Recepção sem uniforme padrão na visita de 05/07; item marcado não conforme no checklist.",
   setor:"Recepção",respOrigem:"Coordenadora da unidade",
-  corretiva:"Feedback imediato à equipe e cobrança do uniforme completo.",
-  preventiva:"Conferência de dress code na abertura da clínica; reforço na integração de novos.",
+  corretiva:"Feedback imediato à equipe e cobrança do uniforme completo. Preventiva: Conferência de dress code na abertura da clínica; reforço na integração de novos.",
   respAcao:"Marcelo (ops.)",prazo:"31/07/2026",status:"Em andamento",proxRev:"Ago/2026",
   devolutiva:""}
 ];
@@ -427,10 +449,11 @@ const DEMO_UPD=[
 /* ===================== ESTADO ===================== */
 let PLANOS=[],IND=[];
 const S={praca:"Todas",consultor:"Todos",indicador:"Todos",origem:"Todos",status:"Todos",mes:"Todos",quick:null,search:"",view:"fichas",sort:"prioridade",
-  visao:(function(){try{return localStorage.getItem("agoVisao")||"rmr";}catch(e){return "rmr";}})()};
-const RMR_SET=new Set(["refacao","repeticao acrilica","repeticao ceramica","delay de agenda","perda de implante","repeticao"]);
-function isRMR(p){const n=(p&&p.indicador)?norm(p.indicador):"";return RMR_SET.has(n)||n.startsWith("repetic");}
-function VIS(p){return S.visao!=="rmr"||isRMR(p);}
+  visao:(function(){try{return localStorage.getItem("agoVisao")||"rmr";}catch(e){return "rmr";}})(),
+  area:(function(){try{const a=localStorage.getItem("agoArea");return (a&&["consultores","layana","alexandre","gregori"].includes(a))?a:"consultores";}catch(e){return "consultores";}})()};
+function isRMR(p){const n=(p&&p.indicador)?norm(p.indicador):"";
+  return n.startsWith("refac")||n.startsWith("repetic")||n==="delay de agenda"||n==="perda de implante";}
+function VIS(p){return S.area!=="consultores"||S.visao!=="rmr"||isRMR(p);}
 function setVisao(v){S.visao=v;try{localStorage.setItem("agoVisao",v);}catch(e){}render();}
 let sortDir=1,RENDER_LIST=[],HIGHLIGHT=null,hlScrolled=false,CONNECTED_IDS=[],LAST_SYNC=null,ROSTER_CONS=[],ROSTER_PRACAS=[];
 
@@ -472,7 +495,7 @@ function mapPlanos(rows){if(rows.length<2)return[];const H=rows[0].map(norm);
   const g=(r,i)=>i>=0?(r[i]||"").trim():"";
   return rows.slice(1).map(r=>({id:g(r,ix.id),praca:g(r,ix.praca),consultor:g(r,ix.consultor),mes:g(r,ix.mes),indicador:g(r,ix.indicador),
     valor:g(r,ix.valor),meta:g(r,ix.meta),acima:deEmoji(g(r,ix.acima)),motivo:g(r,ix.motivo),setor:g(r,ix.setor),
-    respOrigem:g(r,ix.respOrigem),corretiva:g(r,ix.corretiva),preventiva:g(r,ix.preventiva),respAcao:g(r,ix.respAcao),
+    respOrigem:g(r,ix.respOrigem),corretiva:(g(r,ix.corretiva)+(g(r,ix.preventiva)?" Preventiva: "+g(r,ix.preventiva):"")).trim(),respAcao:g(r,ix.respAcao),
     prazo:g(r,ix.prazo),status:deEmoji(g(r,ix.status)),devolutiva:g(r,ix.devolutiva),ultData:g(r,ix.ultData),ultNota:g(r,ix.ultNota),proxRev:g(r,ix.proxRev)}))
     .filter(p=>p.praca||p.indicador);}
 function mapUpd(rows){if(rows.length<2)return[];const H=rows[0].map(norm);const f=(...k)=>H.findIndex(h=>k.every(x=>h.includes(x)));
@@ -493,13 +516,12 @@ function mapListas(rows){if(rows.length<2)return{cons:[],pracas:[]};const H=rows
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),1900);}
 function fallbackCopy(text){const ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();let ok=false;try{ok=document.execCommand("copy");}catch(e){}document.body.removeChild(ta);toast(ok?"Copiado ":"Selecione e copie manualmente");}
 function copy(text){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(()=>toast("Copiado ")).catch(()=>fallbackCopy(text));}else fallbackCopy(text);}
-function planLink(p){const base=location.href.split("#")[0];const q=["visao="+S.visao];if(p.praca)q.push("praca="+encodeURIComponent(p.praca));if(p.id)q.push("plano="+encodeURIComponent(p.id));return base+"#"+q.join("&");}
+function planLink(p){const base=location.href.split("#")[0];const q=["area="+S.area,"visao="+S.visao];if(p.praca)q.push("praca="+encodeURIComponent(p.praca));if(p.id)q.push("plano="+encodeURIComponent(p.id));return base+"#"+q.join("&");}
 function sulsText(p){const u=(p.updates&&p.updates.length)?p.updates[p.updates.length-1]:null;
   const L=["DESVIO — "+(p.indicador||"")+"   |   "+(p.praca||""),
     "Motivo real: "+(p.motivo||"—"),
     "Origem: "+(p.setor||"—")+(p.respOrigem?" — "+p.respOrigem:""),
     "Ação corretiva: "+(p.corretiva||"—"),
-    "Ação preventiva: "+(p.preventiva||"—"),
     "Responsável: "+(p.respAcao||"—")+"    |    Prazo: "+(p.prazo||"—"),
     "Status atual: "+(p.status||"—")];
   if(u)L.push("Última atualização ("+(u.data||"")+"): "+(u.nota||""));
@@ -520,6 +542,7 @@ function sulsAction(act,p,fi){if(!p)return;
 function wireFa(area){area.querySelectorAll(".fa").forEach(b=>b.onclick=e=>{e.stopPropagation();const fi=b.closest(".ficha");if(!fi)return;sulsAction(b.dataset.act,RENDER_LIST[+fi.dataset.i],fi);});}
 function maybeApplyHash(){const h=location.hash.replace(/^#/,"");if(!h)return;const pr={};
   h.split("&").forEach(kv=>{const i=kv.indexOf("=");const k=i<0?kv:kv.slice(0,i);const v=i<0?"":decodeURIComponent(kv.slice(i+1));if(k)pr[k]=v;});
+  if(pr.area&&AREAS[pr.area]&&pr.area!==S.area){setArea(pr.area,true);}
   if(pr.visao==="rmr"||pr.visao==="gestao"){S.visao=pr.visao;try{localStorage.setItem("agoVisao",pr.visao);}catch(e){}}
   if(pr.praca)S.praca=pr.praca;if(pr.consultor)S.consultor=pr.consultor;if(pr.indicador)S.indicador=pr.indicador;
   if(pr.origem)S.origem=pr.origem;if(pr.status)S.status=pr.status;if(pr.mes)S.mes=pr.mes;if(pr.quick)S.quick=pr.quick;
@@ -538,13 +561,13 @@ async function loadFromSheets(ids,opts){opts=opts||{};const silent=opts.silent;c
   const rb=document.getElementById("btnRefresh");if(rb)rb.classList.add("spin");
   let allP=[],allI=[],allU=[],allCons=[],allPracas=[],ok=0,fail=[];
   for(const id of ids){try{const r1=await fetch(gviz(id,TAB_PLANOS),{cache:"no-store"});if(!r1.ok)throw 0;
-    const pl=mapPlanos(parseCSV(await r1.text()));if(!pl.length)throw 0;allP=allP.concat(pl);ok++;
+    const pl=mapPlanos(parseCSV(await r1.text()));allP=allP.concat(pl);ok++;
     try{const r2=await fetch(gviz(id,TAB_IND),{cache:"no-store"});if(r2.ok)allI=allI.concat(mapInd(parseCSV(await r2.text())));}catch(e){}
     try{const r3=await fetch(gviz(id,TAB_UPD),{cache:"no-store"});if(r3.ok)allU=allU.concat(mapUpd(parseCSV(await r3.text())));}catch(e){}
     try{const r4=await fetch(gviz(id,TAB_LISTAS),{cache:"no-store"});if(r4.ok){const li=mapListas(parseCSV(await r4.text()));allCons.push(...li.cons);allPracas.push(...li.pracas);}}catch(e){}}
     catch(e){fail.push(id.slice(0,10)+"…");}}
   if(rb)rb.classList.remove("spin");
-  if(!allP.length){if(!silent){st.textContent="Não consegui ler nenhuma planilha. Confirme o acesso “qualquer pessoa com o link pode ver” e os nomes das abas (“Planos de Ação” / “Atualizações”).";st.className="status-msg err";}return;}
+  if(!ok){if(!silent){st.textContent="Não consegui ler nenhuma planilha. Confirme o acesso “qualquer pessoa com o link pode ver” e os nomes das abas (“Planos de Ação” / “Atualizações”).";st.className="status-msg err";}return;}
   attachUpdates(allP,allU);
   ROSTER_CONS=[...new Set(allCons)];ROSTER_PRACAS=[...new Set(allPracas)];
   PLANOS=allP;IND=allI;CONNECTED_IDS=ids;LAST_SYNC=new Date();
@@ -555,6 +578,15 @@ async function loadFromSheets(ids,opts){opts=opts||{};const silent=opts.silent;c
   if(!silent)maybeApplyHash();
   if(opts.manual)toast("Atualizado · "+allP.length+" desvios");}
 function refresh(manual){if(CONNECTED_IDS.length)loadFromSheets(CONNECTED_IDS,{silent:true,manual:manual});else if(manual)toast("Conecte uma planilha primeiro");}
+function areaIds(a){const cfg=AREAS[a]||AREAS.consultores;let ids=cfg.sheets.slice();
+  if(a==="consultores"&&!ids.length){try{ids=JSON.parse(localStorage.getItem("agoSheetIds")||"[]");}catch(e){}}
+  return ids.map(extractId).filter(Boolean);}
+function setArea(a,fromHash){if(!AREAS[a])return;S.area=a;try{localStorage.setItem("agoArea",a);}catch(e){}
+  Object.assign(S,{praca:"Todas",consultor:"Todos",indicador:"Todos",origem:"Todos",status:"Todos",mes:"Todos",quick:null,search:""});
+  const ids=areaIds(a);
+  if(ids.length){loadFromSheets(ids,{silent:true});}
+  else{PLANOS=[];IND=[];CONNECTED_IDS=[];ROSTER_CONS=[];ROSTER_PRACAS=[];buildOptions();}
+  render();}
 
 /* ===================== FILTRO ===================== */
 function matchSearch(p,q){if(!q)return true;q=norm(q);
@@ -742,8 +774,7 @@ function fichaHTML(p,idx){const above=isAcima(p),atras=isAtrasado(p),dt=daysTo(p
       <div class="f-field wide"><div class="fl">1 · Motivo real do desvio</div><div class="fv">${p.motivo||"—"}</div></div>
       <div class="f-field"><div class="fl">2 · Setor / etapa de origem</div><div class="fv">${p.setor||"—"}</div></div>
       <div class="f-field"><div class="fl">2 · Responsável pela origem</div><div class="fv">${p.respOrigem||"—"}</div></div>
-      <div class="f-field"><div class="fl">3 · Ação corretiva</div><div class="fv">${p.corretiva||"—"}</div></div>
-      <div class="f-field"><div class="fl">3 · Ação preventiva</div><div class="fv">${p.preventiva||"—"}</div></div>
+      <div class="f-field wide"><div class="fl">3 · Ação corretiva</div><div class="fv">${p.corretiva||"—"}</div></div>
     </div>
     <div class="f-inline"><div class="pair"><b>Responsável</b>${p.respAcao||"—"}</div>
       <div class="pair${atras?" late":""}"><b>Prazo</b>${prazoTxt}</div>
@@ -802,6 +833,16 @@ function renderTable(d,area){
 
 /* ===================== RENDER ROOT ===================== */
 function render(){
+  document.querySelectorAll(".area-seg button").forEach(b=>b.classList.toggle("on",b.dataset.area===S.area));
+  const cons=(S.area==="consultores");
+  const vseg=document.querySelector(".visao-seg");if(vseg)vseg.style.display=cons?"":"none";
+  const an=document.getElementById("areaNote");
+  if(an){const cfg=AREAS[S.area];
+    an.textContent=(!cons&&!areaIds(S.area).length)?("Planilha de "+cfg.label+" ainda não conectada — converta o arquivo em Planilha Google e me envie o link para fixar.")
+      :((!cons&&CONNECTED_IDS.length&&!PLANOS.length)?"Planilha conectada — nenhum plano registrado ainda.":"");}
+  const sub=document.querySelector(".subtitle");
+  if(sub)sub.textContent=cons?"Repetição · Refação · Delay de Agenda\u00a0—\u00a0acompanhamento das praças em tempo real"
+    :("Planos de ação · área de "+AREAS[S.area].label+"\u00a0—\u00a0todas as praças da rede");
   const rB=document.getElementById("vRMR"),gB=document.getElementById("vGestao");
   rB.classList.toggle("on",S.visao==="rmr");gB.classList.toggle("on",S.visao!=="rmr");
   renderChips();renderAttention();renderActive();renderKPIs();
@@ -814,7 +855,7 @@ function render(){
   u.style.color=CONNECTED_IDS.length?"#2f6b35":"";}
 
 /* ===================== EXPORT ===================== */
-function exportCSV(){const d=filtered();const cols=[["praca","Praça"],["consultor","Consultor"],["mes","Mês"],["indicador","Indicador"],["valor","Valor"],["meta","Meta"],["acima","Acima"],["motivo","Motivo real"],["setor","Setor origem"],["respOrigem","Resp. origem"],["corretiva","Ação corretiva"],["preventiva","Ação preventiva"],["respAcao","Responsável"],["prazo","Prazo"],["status","Status"],["ultNota","Última atualização"],["proxRev","Próxima revisão"]];
+function exportCSV(){const d=filtered();const cols=[["praca","Praça"],["consultor","Consultor"],["mes","Mês"],["indicador","Indicador"],["valor","Valor"],["meta","Meta"],["acima","Acima"],["motivo","Motivo real"],["setor","Setor origem"],["respOrigem","Resp. origem"],["corretiva","Ação corretiva"],["respAcao","Responsável"],["prazo","Prazo"],["status","Status"],["ultNota","Última atualização"],["proxRev","Próxima revisão"]];
   const esc=s=>'"'+(s||"").toString().replace(/"/g,'""')+'"';
   const csv=[cols.map(c=>esc(c[1])).join(",")].concat(d.map(p=>cols.map(c=>esc(p[c[0]])).join(","))).join("\n");
   const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});const a=document.createElement("a");
@@ -826,9 +867,10 @@ document.getElementById("btnHelp").onclick=()=>{document.getElementById("help").
 document.getElementById("btnPrint").onclick=()=>window.print();
 document.getElementById("btnExport").onclick=exportCSV;
 document.getElementById("btnRefresh").onclick=()=>refresh(true);
+document.querySelectorAll(".area-seg button").forEach(b=>{b.onclick=()=>{location.hash="";setArea(b.dataset.area);};});
 document.getElementById("vRMR").onclick=()=>setVisao("rmr");
 document.getElementById("vGestao").onclick=()=>setVisao("gestao");
-document.getElementById("btnLinkVisao").onclick=()=>{copy(location.href.split("#")[0]+"#visao="+S.visao);};
+document.getElementById("btnLinkVisao").onclick=()=>{copy(location.href.split("#")[0]+"#area="+S.area+"&visao="+S.visao);};
 setInterval(()=>{if(CONNECTED_IDS.length&&document.visibilityState==="visible")refresh(false);},120000);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&CONNECTED_IDS.length)refresh(false);});
 const readIds=()=>document.getElementById("sheetInput").value.split(/\n+/).map(s=>s.trim()).filter(Boolean).map(extractId);
@@ -841,11 +883,14 @@ let tmr;document.getElementById("search").addEventListener("input",e=>{clearTime
 document.getElementById("vFichas").onclick=()=>{S.view="fichas";document.getElementById("vFichas").classList.add("on");document.getElementById("vTabela").classList.remove("on");render();};
 document.getElementById("vTabela").onclick=()=>{S.view="tabela";document.getElementById("vTabela").classList.add("on");document.getElementById("vFichas").classList.remove("on");render();};
 
-(function start(){let saved=[];try{saved=JSON.parse(localStorage.getItem("agoSheetIds")||"[]");}catch(e){}
-  const ids=(SHEETS_HARDCODED.length?SHEETS_HARDCODED:saved).map(extractId).filter(Boolean);
-  DEMO_PLANOS.forEach((p,i)=>p.id="P-00"+(i+1));
-  attachUpdates(DEMO_PLANOS,DEMO_UPD);
-  PLANOS=DEMO_PLANOS;IND=DEMO_IND;buildOptions();render();maybeApplyHash();
+(function start(){
+  const ids=areaIds(S.area);
+  if(S.area==="consultores"||ids.length){
+    DEMO_PLANOS.forEach((p,i)=>p.id="P-00"+(i+1));
+    attachUpdates(DEMO_PLANOS,DEMO_UPD);
+    PLANOS=DEMO_PLANOS;IND=DEMO_IND;
+  }else{PLANOS=[];IND=[];}
+  buildOptions();render();maybeApplyHash();
   window.addEventListener("hashchange",maybeApplyHash);
   if(ids.length){document.getElementById("sheetInput").value=ids.join("\n");loadFromSheets(ids);}})();
 </script>
