@@ -487,13 +487,19 @@ function parseCSV(text){const rows=[];let row=[],cur="",q=false;
   return rows.filter(r=>r.some(x=>(x||"").trim()!==""));}
 function mapPlanos(rows){if(rows.length<2)return[];const H=rows[0].map(norm);
   const find=(...k)=>H.findIndex(h=>k.every(x=>h.includes(x)));
-  const ix={id:H.findIndex(h=>h==="id"),praca:find("praca")>=0?find("praca"):find("unidade"),consultor:find("consultor"),mes:find("mes"),
+  const dataReg=find("data","registro"), mesRef=find("mes","referencia");
+  const mesA=find("mes","analise");
+  const ultD=(find("atualizacao","data")>=0)?find("atualizacao","data")
+    :H.findIndex((x,i)=>x.includes("data")&&i!==dataReg);
+  const ix={id:H.findIndex(h=>h==="id"),praca:find("praca")>=0?find("praca"):find("unidade"),consultor:(find("consultor")>=0?find("consultor"):find("diretor")),
+    mes:(mesA>=0?mesA:H.findIndex((x,i)=>x.includes("mes")&&i!==mesRef)),
+    dataReg:dataReg,mesRef:mesRef,
     indicador:find("indicador"),valor:find("valor"),meta:find("meta"),acima:find("acima"),motivo:find("motivo"),
     setor:find("setor")>=0?find("setor"):find("etapa"),respOrigem:find("responsavel","origem"),corretiva:find("corretiva"),
     preventiva:find("preventiva"),respAcao:find("responsavel","acao"),prazo:find("prazo"),status:find("status"),
-    devolutiva:find("devolutiva"),ultData:find("data"),ultNota:find("nota"),proxRev:find("proxima")};
+    devolutiva:find("devolutiva"),ultData:ultD,ultNota:find("nota"),proxRev:find("proxima")};
   const g=(r,i)=>i>=0?(r[i]||"").trim():"";
-  return rows.slice(1).map(r=>({id:g(r,ix.id),praca:g(r,ix.praca),consultor:g(r,ix.consultor),mes:g(r,ix.mes),indicador:g(r,ix.indicador),
+  return rows.slice(1).map(r=>({id:g(r,ix.id),praca:g(r,ix.praca),consultor:g(r,ix.consultor),mes:g(r,ix.mes),dataReg:g(r,ix.dataReg),mesRef:g(r,ix.mesRef),indicador:g(r,ix.indicador),
     valor:g(r,ix.valor),meta:g(r,ix.meta),acima:deEmoji(g(r,ix.acima)),motivo:g(r,ix.motivo),setor:g(r,ix.setor),
     respOrigem:g(r,ix.respOrigem),corretiva:(g(r,ix.corretiva)+(g(r,ix.preventiva)?" Preventiva: "+g(r,ix.preventiva):"")).trim(),respAcao:g(r,ix.respAcao),
     prazo:g(r,ix.prazo),status:deEmoji(g(r,ix.status)),devolutiva:g(r,ix.devolutiva),ultData:g(r,ix.ultData),ultNota:g(r,ix.ultNota),proxRev:g(r,ix.proxRev)}))
@@ -590,7 +596,7 @@ function setArea(a,fromHash){if(!AREAS[a])return;S.area=a;try{localStorage.setIt
 
 /* ===================== FILTRO ===================== */
 function matchSearch(p,q){if(!q)return true;q=norm(q);
-  return[p.praca,p.consultor,p.indicador,p.setor,p.respOrigem,p.respAcao,p.motivo,p.corretiva,p.preventiva,p.devolutiva,p.mes,p.status,p.prazo]
+  return[p.praca,p.consultor,p.indicador,p.setor,p.respOrigem,p.respAcao,p.motivo,p.corretiva,p.preventiva,p.devolutiva,p.mes,p.dataReg,p.mesRef,p.status,p.prazo]
     .some(v=>norm(v).includes(q));}
 function passQuick(p){if(!S.quick)return true;
   if(S.quick==="atrasados")return isAtrasado(p);
@@ -768,7 +774,7 @@ function fichaHTML(p,idx){const above=isAcima(p),atras=isAtrasado(p),dt=daysTo(p
   const prazoTxt=p.prazo+(dt!==null&&!atras&&!isConcl(p)?` <small>(${dt} d)</small>`:"");
   return `<div class="ficha${above?" above":""}${p.id&&p.id===HIGHLIGHT?" hl":""}" data-i="${idx==null?-1:idx}">
     <div class="f-top"><div><div class="f-title">${p.indicador||"—"}</div>
-      <div class="f-meta">${p.praca} · ${p.consultor||"—"} · ${p.mes||"—"} &nbsp;|&nbsp; apurado: <b>${p.valor||"—"}</b> · meta: ${p.meta||"—"}</div></div>
+      <div class="f-meta">${p.praca} · ${p.consultor||"—"} · ${p.mes||"—"}${p.mesRef?` · ref.: ${p.mesRef}`:""}${p.dataReg?` · registrado em ${p.dataReg}`:""} &nbsp;|&nbsp; apurado: <b>${p.valor||"—"}</b> · meta: ${p.meta||"—"}</div></div>
       <div class="f-badges">${badges}</div></div>
     <div class="f-grid">
       <div class="f-field wide"><div class="fl">1 · Motivo real do desvio</div><div class="fv">${p.motivo||"—"}</div></div>
