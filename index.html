@@ -139,6 +139,8 @@
     border-radius:999px;padding:7px 14px;cursor:pointer;transition:.15s}
   .chip:hover{border-color:var(--rose);color:var(--rose-dk)}
   .chip.active{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+  .chip .cn{display:inline-block;margin-left:6px;font-size:11px;font-weight:700;color:var(--ink3);background:var(--bg);border-radius:999px;padding:1px 7px;vertical-align:1px}
+  .chip.active .cn{background:rgba(255,255,255,.18);color:var(--surface)}
   .chip:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
   select.msel{font-size:13px;font-weight:600;color:var(--ink);background:var(--surface);border:1px solid var(--line);
     border-radius:999px;padding:8px 13px;cursor:pointer;max-width:190px}
@@ -731,20 +733,34 @@ function buildOptions(){
 }
 
 /* ===================== RENDER: chips / attention / filtros ===================== */
+/* ---- chips em cascata: consultor → praças dele → meses com plano ---- */
+const countBy=(list,key)=>{const m=new Map();list.forEach(p=>{const v=p[key];if(!v)return;m.set(v,(m.get(v)||0)+1);});return m;};
+const chipHTML=(lbl,n,active,attr,val)=>`<button class="chip${active?" active":""}" ${attr}="${val}">${lbl}${n!=null?` <span class="cn">${n}</span>`:""}</button>`;
 function renderConsChips(){const el=document.getElementById("consChips");if(!el)return;
-  const cs=[...new Set([...uniq("consultor"),...ROSTER_CONS])].filter(Boolean).sort((a,b)=>a.localeCompare(b));
-  const all=["Todos",...cs];
-  el.innerHTML=all.map(c=>`<button class="chip${c===S.consultor?" active":""}" data-c="${c}">${c}</button>`).join("");
-  el.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{S.consultor=b.dataset.c;render();});}
-function renderMesChips(){const el=document.getElementById("mesChips");if(!el)return;
-  const ms=uniq("mes").sort((a,b)=>mesKey(b)-mesKey(a));
-  const all=["Todos",...ms];
-  el.innerHTML=all.map(m=>`<button class="chip${m===S.mes?" active":""}" data-m="${m}">${m}</button>`).join("");
-  el.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{S.mes=b.dataset.m;render();});}
+  const base=PLANOS.filter(p=>VIS(p));
+  const cnt=countBy(base,"consultor");
+  const cs=[...new Set([...cnt.keys(),...ROSTER_CONS])].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+  el.innerHTML=chipHTML("Todos",base.length,S.consultor==="Todos","data-c","Todos")+cs.map(c=>chipHTML(c,cnt.get(c)||0,c===S.consultor,"data-c",c)).join("");
+  el.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{const v=b.dataset.c;
+    S.consultor=(S.consultor===v||v==="Todos")?"Todos":v;
+    // praça escolhida não pertence ao consultor novo? volta para Todas
+    if(S.consultor!=="Todos"&&S.praca!=="Todas"&&!PLANOS.some(p=>p.consultor===S.consultor&&p.praca===S.praca))S.praca="Todas";
+    S.mes="Todos";render();});}
 function renderChips(){const el=document.getElementById("pracaChips");
-  const ps=["Todas",...uniq("praca").sort()];
-  el.innerHTML=ps.map(p=>`<button class="chip${p===S.praca?" active":""}" data-p="${p}">${p}</button>`).join("");
-  el.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{S.praca=c.dataset.p;render();});}
+  const base=PLANOS.filter(p=>VIS(p)&&(S.consultor==="Todos"||p.consultor===S.consultor));
+  const cnt=countBy(base,"praca");
+  const ps=[...cnt.keys()].sort((a,b)=>a.localeCompare(b));
+  el.innerHTML=chipHTML("Todas",base.length,S.praca==="Todas","data-p","Todas")+ps.map(p=>chipHTML(p,cnt.get(p),p===S.praca,"data-p",p)).join("");
+  el.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{const v=c.dataset.p;
+    S.praca=(S.praca===v||v==="Todas")?"Todas":v;
+    if(S.praca!=="Todas"&&S.mes!=="Todos"&&!PLANOS.some(p=>p.praca===S.praca&&p.mes===S.mes))S.mes="Todos";
+    render();});}
+function renderMesChips(){const el=document.getElementById("mesChips");if(!el)return;
+  const base=PLANOS.filter(p=>VIS(p)&&(S.consultor==="Todos"||p.consultor===S.consultor)&&(S.praca==="Todas"||p.praca===S.praca));
+  const cnt=countBy(base,"mes");
+  const ms=[...cnt.keys()].sort((a,b)=>mesKey(b)-mesKey(a));
+  el.innerHTML=chipHTML("Todos",base.length,S.mes==="Todos","data-m","Todos")+ms.map(m=>chipHTML(m,cnt.get(m),m===S.mes,"data-m",m)).join("");
+  el.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{const v=b.dataset.m;S.mes=(S.mes===v||v==="Todos")?"Todos":v;render();});}
 function renderAttention(){const el=document.getElementById("attention");
   const base=PLANOS.filter(p=>VIS(p)&&(S.praca==="Todas"||p.praca===S.praca));
   const at=base.filter(isAtrasado).length,pe=base.filter(isPend).length,re=base.filter(isRecor).length,ac=base.filter(isAcima).length;
