@@ -91,6 +91,8 @@
   .fontes .fs b{color:var(--ink)}
   .fontes .fs.bad{border-color:#b1453b;color:#b1453b;background:#F7D9D5}
   .fontes .fs.bad b{color:#b1453b}
+  .fontes .fs.warn{border-color:#B08A2E;background:#F7EFD9;color:#6b5210}
+  .fontes .fs.warn em{font-style:normal;font-weight:700}
   .fontes .cap{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--ink3)}
 
   /* ===== bloco de comando ===== */
@@ -104,10 +106,14 @@
   .showing b{color:var(--ink);font-size:15px}
   .cmd-lbl{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);font-weight:700;padding-top:9px}
   .cmd-body{display:flex;gap:10px;flex-wrap:wrap;align-items:center;min-height:36px}
-  .cmd-body.fields{align-items:flex-end}
-  .fld{display:flex;flex-direction:column;gap:4px;min-width:150px}
-  .fld>span{font-size:11px;color:var(--ink3);font-weight:600;padding-left:4px}
-  .fld.grow{flex:1 1 260px}
+  .cmd-body.fields{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px 12px;align-items:end}
+  .fld{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .fld>span{font-size:11px;color:var(--ink3);font-weight:700;letter-spacing:.02em;padding-left:2px}
+  .fld.grow{grid-column:1 / -1}
+  @media(max-width:1100px){.cmd-body.fields{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media(max-width:700px){.cmd-body.fields{grid-template-columns:1fr}}
+  .chip.all{background:transparent;border-style:dashed}
+  .chip.all.active{background:var(--ink);border-style:solid}
   .fld .search{width:100%}
   .fld select.msel{width:100%;max-width:none}
   .hidden-sel{display:none!important}
@@ -536,9 +542,13 @@ let sortDir=1,RENDER_LIST=[],HIGHLIGHT=null,hlScrolled=false,CONNECTED_IDS=[],LA
 function renderFontes(){const el=document.getElementById("fontes");if(!el)return;
   if(!FONTES.length){el.innerHTML="";return;}
   const hh=LAST_SYNC?LAST_SYNC.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"";
-  el.innerHTML=`<span class="cap">Fontes lidas</span>`+FONTES.map(f=>f.ok
-    ?`<span class="fs"><b>${f.nome||"Planilha"}</b> · ${f.n} plano${f.n===1?"":"s"}</span>`
-    :`<span class="fs bad"><b>Falha ao ler</b> uma planilha — confira o compartilhamento</span>`).join("")
+  let mem={};try{mem=JSON.parse(localStorage.getItem("agoFonteMax")||"{}");}catch(e){}
+  FONTES.forEach(f=>{if(f.ok&&f.n>(mem[f.id]||0))mem[f.id]=f.n;});
+  try{localStorage.setItem("agoFonteMax",JSON.stringify(mem));}catch(e){}
+  el.innerHTML=`<span class="cap">Fontes lidas</span>`+FONTES.map(f=>{
+    if(!f.ok)return`<span class="fs bad"><b>Falha ao ler</b> uma planilha — confira o compartilhamento</span>`;
+    const max=mem[f.id]||0,shrunk=max>=10&&f.n<max*0.6;
+    return`<span class="fs${shrunk?" warn":""}" title="${shrunk?"Já vi "+max+" planos nesta planilha. Provável filtro comum ativo na aba Planos de Ação: abra a planilha → Dados → Remover filtro.":""}"><b>${f.nome||"Planilha"}</b> · ${f.n} plano${f.n===1?"":"s"}${shrunk?` <em>· só ${f.n} de ${max}? filtro ativo na planilha</em>`:""}</span>`;}).join("")
     +(hh?`<span class="fs">atualizado ${hh}</span>`:"");}
 
 /* ===================== UTIL ===================== */
@@ -718,7 +728,7 @@ function uniqCI(key){const seen=new Map();PLANOS.forEach(p=>{const v=cleanName(p
 function uniq(key){return[...new Set(PLANOS.map(p=>p[key]).filter(Boolean))];}
 function fillSelect(id,label,vals,cur,sortM){const el=document.getElementById(id);
   let opts=vals.slice();opts.sort(sortM||((a,b)=>a.localeCompare(b)));
-  el.innerHTML=`<option value="Todos">${label}: todos</option>`+opts.map(v=>`<option value="${v}"${v===cur?" selected":""}>${v}</option>`).join("");}
+  el.innerHTML=`<option value="Todos">Todos</option>`+opts.map(v=>`<option value="${v}"${v===cur?" selected":""}>${v}</option>`).join("");}
 function buildOptions(){
   fillSelect("fConsultor","Consultor",[...new Set([...uniq("consultor"),...ROSTER_CONS])],S.consultor);
   fillSelect("fIndicador","Indicador",uniq("indicador"),S.indicador);
@@ -735,12 +745,12 @@ function buildOptions(){
 /* ===================== RENDER: chips / attention / filtros ===================== */
 /* ---- chips em cascata: consultor → praças dele → meses com plano ---- */
 const countBy=(list,key)=>{const m=new Map();list.forEach(p=>{const v=p[key];if(!v)return;m.set(v,(m.get(v)||0)+1);});return m;};
-const chipHTML=(lbl,n,active,attr,val)=>`<button class="chip${active?" active":""}" ${attr}="${val}">${lbl}${n!=null?` <span class="cn">${n}</span>`:""}</button>`;
+const chipHTML=(lbl,n,active,attr,val,all)=>`<button class="chip${active?" active":""}${all?" all":""}" ${attr}="${val}">${lbl}</button>`;
 function renderConsChips(){const el=document.getElementById("consChips");if(!el)return;
   const base=PLANOS.filter(p=>VIS(p));
   const cnt=countBy(base,"consultor");
   const cs=[...new Set([...cnt.keys(),...ROSTER_CONS])].filter(Boolean).sort((a,b)=>a.localeCompare(b));
-  el.innerHTML=chipHTML("Todos",base.length,S.consultor==="Todos","data-c","Todos")+cs.map(c=>chipHTML(c,cnt.get(c)||0,c===S.consultor,"data-c",c)).join("");
+  el.innerHTML=chipHTML("Todos os consultores",null,S.consultor==="Todos","data-c","Todos",true)+cs.map(c=>chipHTML(c,null,c===S.consultor,"data-c",c)).join("");
   el.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{const v=b.dataset.c;
     S.consultor=(S.consultor===v||v==="Todos")?"Todos":v;
     // praça escolhida não pertence ao consultor novo? volta para Todas
@@ -750,7 +760,7 @@ function renderChips(){const el=document.getElementById("pracaChips");
   const base=PLANOS.filter(p=>VIS(p)&&(S.consultor==="Todos"||p.consultor===S.consultor));
   const cnt=countBy(base,"praca");
   const ps=[...cnt.keys()].sort((a,b)=>a.localeCompare(b));
-  el.innerHTML=chipHTML("Todas",base.length,S.praca==="Todas","data-p","Todas")+ps.map(p=>chipHTML(p,cnt.get(p),p===S.praca,"data-p",p)).join("");
+  el.innerHTML=chipHTML("Todas as praças",null,S.praca==="Todas","data-p","Todas",true)+ps.map(p=>chipHTML(p,null,p===S.praca,"data-p",p)).join("");
   el.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{const v=c.dataset.p;
     S.praca=(S.praca===v||v==="Todas")?"Todas":v;
     if(S.praca!=="Todas"&&S.mes!=="Todos"&&!PLANOS.some(p=>p.praca===S.praca&&p.mes===S.mes))S.mes="Todos";
@@ -759,7 +769,7 @@ function renderMesChips(){const el=document.getElementById("mesChips");if(!el)re
   const base=PLANOS.filter(p=>VIS(p)&&(S.consultor==="Todos"||p.consultor===S.consultor)&&(S.praca==="Todas"||p.praca===S.praca));
   const cnt=countBy(base,"mes");
   const ms=[...cnt.keys()].sort((a,b)=>mesKey(b)-mesKey(a));
-  el.innerHTML=chipHTML("Todos",base.length,S.mes==="Todos","data-m","Todos")+ms.map(m=>chipHTML(m,cnt.get(m),m===S.mes,"data-m",m)).join("");
+  el.innerHTML=chipHTML("Todos os meses",null,S.mes==="Todos","data-m","Todos",true)+ms.map(m=>chipHTML(m,null,m===S.mes,"data-m",m)).join("");
   el.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{const v=b.dataset.m;S.mes=(S.mes===v||v==="Todos")?"Todos":v;render();});}
 function renderAttention(){const el=document.getElementById("attention");
   const base=PLANOS.filter(p=>VIS(p)&&(S.praca==="Todas"||p.praca===S.praca));
