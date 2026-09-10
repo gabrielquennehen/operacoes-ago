@@ -744,12 +744,17 @@ function fillSelect(id,label,vals,cur,sortM){const el=document.getElementById(id
   el.innerHTML=`<option value="Todos">Todos</option>`+opts.map(v=>`<option value="${v}"${v===cur?" selected":""}>${v}</option>`).join("");}
 function buildOptions(){
   fillSelect("fConsultor","Consultor",[...new Set([...uniq("consultor"),...ROSTER_CONS])],S.consultor);
-  fillSelect("fIndicador","Indicador",uniq("indicador"),S.indicador);
-  fillSelect("fOrigem","Origem",uniq("setor"),S.origem);
-  fillSelect("fStatus","Status",uniq("status"),S.status);
+  // opções em cascata: só o que existe no recorte atual (todos os outros filtros aplicados)
+  const optsFor=(key,field)=>{const base=filtered(key);const seen=new Map();
+    base.forEach(p=>{const v=cleanName(p[field]);if(!v)return;const k=norm(v);if(!seen.has(k))seen.set(k,v);});
+    const cur=S[key];if(cur&&cur!=="Todos"&&!seen.has(norm(cur)))seen.set(norm(cur),cur);
+    return[...seen.values()];};
+  fillSelect("fIndicador","Indicador",optsFor("indicador","indicador"),S.indicador);
+  fillSelect("fOrigem","Origem",optsFor("origem","setor"),S.origem);
+  fillSelect("fStatus","Status",optsFor("status","status"),S.status);
   fillSelect("fMes","Mês",uniq("mes"),S.mes,(a,b)=>mesKey(b)-mesKey(a));
-  fillSelect("fRespOrigem","Resp. origem",uniqCI("respOrigem"),S.respOrigem);
-  fillSelect("fRespAcao","Resp. ação",uniqCI("respAcao"),S.respAcao);
+  fillSelect("fRespOrigem","Resp. origem",optsFor("respOrigem","respOrigem"),S.respOrigem);
+  fillSelect("fRespAcao","Resp. ação",optsFor("respAcao","respAcao"),S.respAcao);
   {const el=document.getElementById("fPraca");const ps=uniq("praca").sort((a,b)=>a.localeCompare(b));
    el.innerHTML=`<option value="Todas">Praça: todas</option>`+ps.map(v=>`<option value="${v}"${v===S.praca?" selected":""}>${v}</option>`).join("");}
   document.getElementById("fSort").value=S.sort;
@@ -1013,7 +1018,7 @@ function render(){
     :("Planos de ação · área de "+AREAS[S.area].label+"\u00a0—\u00a0todas as praças da rede");
   const rB=document.getElementById("vRMR"),gB=document.getElementById("vGestao");
   rB.classList.toggle("on",S.visao==="rmr");gB.classList.toggle("on",S.visao!=="rmr");
-  renderChips();renderConsChips();renderMesChips();renderAttention();renderActive();renderKPIs();
+  buildOptions();renderChips();renderConsChips();renderMesChips();renderAttention();renderActive();renderKPIs();
   renderStatus();renderOrigem();renderIndicador();renderPraca();renderConsultor();renderTrend();
   renderDrill();
   document.getElementById("fConsultor").value=S.consultor;document.getElementById("fIndicador").value=S.indicador;
