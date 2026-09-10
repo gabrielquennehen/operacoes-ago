@@ -548,7 +548,9 @@ function renderFontes(){const el=document.getElementById("fontes");if(!el)return
   el.innerHTML=`<span class="cap">Fontes lidas</span>`+FONTES.map(f=>{
     if(!f.ok)return`<span class="fs bad"><b>Falha ao ler</b> uma planilha — confira o compartilhamento</span>`;
     const max=mem[f.id]||0,shrunk=max>=10&&f.n<max*0.6;
-    return`<span class="fs${shrunk?" warn":""}" title="${shrunk?"Já vi "+max+" planos nesta planilha. Provável filtro comum ativo na aba Planos de Ação: abra a planilha → Dados → Remover filtro.":""}"><b>${f.nome||"Planilha"}</b> · ${f.n} plano${f.n===1?"":"s"}${shrunk?` <em>· só ${f.n} de ${max}? filtro ativo na planilha</em>`:""}</span>`;}).join("")
+    const hdr=(f.issues&&f.issues.length)?f.issues[0]:"";
+    const tip=[shrunk?"Já vi "+max+" planos nesta planilha. Provável filtro comum ativo na aba Planos de Ação: abra a planilha → Dados → Remover filtro.":"",hdr?hdr+". Corrija o título na linha 1 da aba Planos de Ação.":""].filter(Boolean).join(" ");
+    return`<span class="fs${(shrunk||hdr)?" warn":""}" title="${tip.replace(/"/g,"'")}"><b>${f.nome||"Planilha"}</b> · ${f.n} plano${f.n===1?"":"s"}${shrunk?` <em>· só ${f.n} de ${max}? filtro ativo na planilha</em>`:""}${hdr?` <em>· cabeçalho apagado na planilha</em>`:""}</span>`;}).join("")
     +(hh?`<span class="fs">atualizado ${hh}</span>`:"");}
 
 /* ===================== UTIL ===================== */
@@ -563,7 +565,8 @@ function normMes(raw){const s=norm(raw);if(!s)return"";let m=null,y=null,t;
   else if(/^\d{5}$/.test(s)){const d=new Date(1899,11,30);d.setDate(d.getDate()+(+s));m=d.getMonth()+1;y=d.getFullYear();}
   else{const mm=s.match(/\b(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)/);const yy=s.match(/(\d{4})|\b(\d{2})\b/);
     if(mm){m=MN[mm[1]];if(yy)y=+(yy[1]||yy[2]);}}
-  if(!m||m<1||m>12||y==null)return(raw||"").toString().trim();
+  if(!m||m<1||m>12)return(raw||"").toString().trim();
+  if(y==null){const now=new Date();y=now.getFullYear();if(m>now.getMonth()+2)y-=1;}
   if(y<100)y+=2000;return MLBL[m-1]+"/"+y;}
 const cleanName=s=>(s||"").toString().replace(/\s+/g," ").trim();
 const deEmoji=s=>(s||"").toString().replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{1F1E6}-\u{1F1FF}]/gu,"").replace(/\s+/g," ").trim();
@@ -606,6 +609,16 @@ function mapPlanos(rows){if(rows.length<2)return[];const H=rows[0].map(norm);
     preventiva:find("preventiva"),respAcao:find("responsavel","acao"),prazo:find("prazo"),status:find("status"),
     devolutiva:find("devolutiva"),ultData:ultD,ultNota:find("nota"),proxRev:find("proxima")};
   const g=(r,i)=>i>=0?(r[i]||"").trim():"";
+  // Tolerância a título apagado: infere pela posição padrão (ID, Praça, Consultor, Mês, Indicador…)
+  mapPlanos.issues=[];
+  const guess=(k,pos,label)=>{if(ix[k]<0&&H.length>pos){ix[k]=pos;mapPlanos.issues.push("título da coluna «"+label+"» apagado — o painel inferiu pela posição");}};
+  if(ix.id<0&&H.length>0&&!H[0]){ix.id=0;mapPlanos.issues.push("título da coluna «ID» apagado — inferido pela posição");}
+  guess("praca",ix.id+1,"Praça");guess("consultor",ix.id+2,"Consultor");guess("mes",ix.id+3,"Mês");
+  guess("indicador",(ix.mes>=0?ix.mes+1+(mesRef>=0?1:0):4),"Indicador");
+  guess("valor",ix.indicador+1,"Valor");guess("meta",ix.indicador+2,"Meta");guess("acima",ix.indicador+3,"Acima da Meta");
+  guess("motivo",ix.indicador+4,"Motivo");guess("setor",ix.indicador+5,"Setor");guess("respOrigem",ix.indicador+6,"Resp. origem");
+  guess("corretiva",ix.indicador+7,"Ação corretiva");guess("respAcao",ix.indicador+8,"Resp. ação");guess("prazo",ix.indicador+9,"Prazo");
+  guess("proxRev",ix.indicador+10,"Próxima revisão");guess("status",ix.indicador+11,"Status");guess("ultData",ix.indicador+12,"Últ. data");guess("ultNota",ix.indicador+13,"Últ. nota");
   return rows.slice(1).map(r=>({id:g(r,ix.id),praca:g(r,ix.praca),consultor:g(r,ix.consultor),mes:g(r,ix.mes),dataReg:g(r,ix.dataReg),mesRef:g(r,ix.mesRef),indicador:g(r,ix.indicador),
     valor:g(r,ix.valor),meta:g(r,ix.meta),acima:deEmoji(g(r,ix.acima)),motivo:g(r,ix.motivo),setor:g(r,ix.setor),
     respOrigem:g(r,ix.respOrigem),corretiva:(g(r,ix.corretiva)+(g(r,ix.preventiva)?" Preventiva: "+g(r,ix.preventiva):"")).trim(),respAcao:g(r,ix.respAcao),
@@ -676,7 +689,7 @@ async function loadFromSheets(ids,opts){opts=opts||{};const silent=opts.silent;c
   let allP=[],allI=[],allU=[],allCons=[],allPracas=[],ok=0,fail=[];FONTES=[];
   for(const id of ids){try{const r1=await fetch(gviz(id,TAB_PLANOS),{cache:"no-store"});if(!r1.ok)throw 0;
     const pl=mapPlanos(parseCSV(await r1.text()));allP=allP.concat(pl);ok++;
-    FONTES.push({id,ok:true,n:pl.length,nome:(pl.find(p=>p.consultor)||{}).consultor||""});
+    FONTES.push({id,ok:true,n:pl.length,nome:(pl.find(p=>p.consultor)||{}).consultor||"",issues:(mapPlanos.issues||[]).slice()});
     try{const r2=await fetch(gviz(id,TAB_IND),{cache:"no-store"});if(r2.ok)allI=allI.concat(mapInd(parseCSV(await r2.text())));}catch(e){}
     try{const r3=await fetch(gviz(id,TAB_UPD),{cache:"no-store"});if(r3.ok)allU=allU.concat(mapUpd(parseCSV(await r3.text())));}catch(e){}
     try{const r4=await fetch(gviz(id,TAB_LISTAS),{cache:"no-store"});if(r4.ok){const li=mapListas(parseCSV(await r4.text()));allCons.push(...li.cons);allPracas.push(...li.pracas);}}catch(e){}}
